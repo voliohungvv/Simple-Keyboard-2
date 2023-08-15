@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import android.inputmethodservice.InputMethodService
 import android.text.InputType.*
 import android.text.TextUtils
+import android.util.Log
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.CursorAnchorInfo
@@ -22,6 +23,7 @@ import com.simplemobiletools.keyboard.views.MyKeyboardView
 import kotlinx.android.synthetic.main.keyboard_view_keyboard.view.keyboard_holder
 import kotlinx.android.synthetic.main.keyboard_view_keyboard.view.keyboard_view
 
+private const val TAG = "SimpleKeyboardIME"
 // based on https://www.androidauthority.com/lets-build-custom-keyboard-android-832362/
 class SimpleKeyboardIME : InputMethodService(), OnKeyboardActionListener, SharedPreferences.OnSharedPreferenceChangeListener {
     private var SHIFT_PERM_TOGGLE_SPEED = 500   // how quickly do we have to doubletap shift to enable permanent caps lock
@@ -100,6 +102,7 @@ class SimpleKeyboardIME : InputMethodService(), OnKeyboardActionListener, Shared
             lastShiftPressTS = 0
         }
 
+        Log.e(TAG, "onKey: ${code} ", )
         when (code) {
             MyKeyboard.KEYCODE_DELETE -> {
                 val selectedText = inputConnection.getSelectedText(0)
@@ -308,6 +311,7 @@ class SimpleKeyboardIME : InputMethodService(), OnKeyboardActionListener, Shared
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
+        Log.e(TAG, "onSharedPreferenceChanged: setupkeyboard", )
         keyboardView?.setupKeyboard()
     }
 }

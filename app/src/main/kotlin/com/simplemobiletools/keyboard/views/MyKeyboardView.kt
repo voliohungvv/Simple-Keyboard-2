@@ -1,5 +1,6 @@
 package com.simplemobiletools.keyboard.views
 
+import android.animation.Animator
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
@@ -10,10 +11,13 @@ import android.content.Intent
 import android.graphics.*
 import android.graphics.Paint.Align
 import android.graphics.drawable.*
+import android.media.AudioAttributes
+import android.media.SoundPool
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.util.AttributeSet
+import android.util.Log
 import android.util.TypedValue
 import android.view.*
 import android.view.animation.AccelerateInterpolator
@@ -23,8 +27,12 @@ import android.widget.TextView
 import androidx.core.animation.doOnEnd
 import androidx.core.animation.doOnStart
 import androidx.core.view.ViewCompat
+import androidx.core.view.isVisible
 import androidx.emoji2.text.EmojiCompat
 import androidx.emoji2.text.EmojiCompat.EMOJI_SUPPORTED
+import com.airbnb.lottie.LottieAnimationView
+import com.airbnb.lottie.LottieCompositionFactory
+import com.airbnb.lottie.LottieDrawable
 import com.simplemobiletools.commons.extensions.*
 import com.simplemobiletools.commons.helpers.ensureBackgroundThread
 import com.simplemobiletools.commons.helpers.isPiePlus
@@ -49,11 +57,18 @@ import com.simplemobiletools.keyboard.models.ClipsSectionLabel
 import com.simplemobiletools.keyboard.models.ListItem
 import kotlinx.android.synthetic.main.keyboard_popup_keyboard.view.*
 import kotlinx.android.synthetic.main.keyboard_view_keyboard.view.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.*
+
+
+private const val TAG = "MyKeyboardView"
 
 @SuppressLint("UseCompatLoadingForDrawables", "ClickableViewAccessibility")
 class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: AttributeSet?, defStyleRes: Int = 0) : View(context, attrs, defStyleRes) {
 
+    private var lottieDrawable: LottieDrawable? = null
     override fun dispatchHoverEvent(event: MotionEvent): Boolean {
         return if (accessHelper?.dispatchHoverEvent(event) == true) {
             true
@@ -132,6 +147,7 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
 
     private var mToolbarHolder: View? = null
     private var mClipboardManagerHolder: View? = null
+    private var animClick = mutableListOf<LottieAnimationView?>()
     private var mEmojiPaletteHolder: View? = null
     private var emojiCompatMetadataVersion = 0
 
@@ -152,6 +168,7 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
 
     /** The canvas for the above mutable keyboard bitmap  */
     private var mCanvas: Canvas? = null
+    private var mCanvasAnim: Canvas? = null
 
     private var mHandler: Handler? = null
 
@@ -168,7 +185,23 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
         private val LONGPRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout()
     }
 
+    private var isShowAnim = false
+
     init {
+
+        lottieDrawable = LottieDrawable()
+        lottieDrawable?.let {
+            it.enableMergePathsForKitKatAndAbove(true)
+            it.callback = this
+            val result = LottieCompositionFactory.fromRawResSync(context.applicationContext, R.raw.anim)
+            it.composition = result.value
+            it.repeatCount = LottieDrawable.INFINITE
+            it.setBounds(0, 0, 60, 60)
+            it.start()
+
+        }
+
+
         val attributes = context.obtainStyledAttributes(attrs, R.styleable.MyKeyboardView, 0, defStyleRes)
         val inflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
         val keyTextSize = 0
@@ -285,6 +318,7 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
         mToolbarHolder = keyboardHolder.toolbar_holder
         mClipboardManagerHolder = keyboardHolder.clipboard_manager_holder
         mEmojiPaletteHolder = keyboardHolder.emoji_palette_holder
+        animClick = mutableListOf(keyboardHolder.animClick1, keyboardHolder.animClick2, keyboardHolder.animClick3, keyboardHolder.animClick4)
 
         mToolbarHolder!!.apply {
             settings_cog.setOnLongClickListener { context.toast(R.string.settings); true; }
@@ -348,18 +382,28 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
 
     fun setupKeyboard(changedView: View? = null) {
         with(context.safeStorageContext) {
-            mTextColor = getProperTextColor()
-            mBackgroundColor = getProperBackgroundColor()
-            mPrimaryColor = getProperPrimaryColor()
+            // change text color
+            //      mTextColor = getProperTextColor()
+            mTextColor = Color.rgb(79, 52, 235)
+            ///  mBackgroundColor = getProperBackgroundColor()
+            mBackgroundColor = Color.rgb(
+                160, 147, 237
+            )
+         //   mPrimaryColor = getProperPrimaryColor()
+            mPrimaryColor = Color.rgb(228, 147, 237)
 
             mShowKeyBorders = config.showKeyBorders
             mUsingSystemTheme = config.isUsingSystemTheme
         }
 
         val isMainKeyboard = changedView == null || changedView != mini_keyboard_view
+        // change border here
         mKeyBackground = if (mShowKeyBorders && isMainKeyboard) {
+            Log.e(TAG, "setupKeyboard: keyboard_key_selector_outlined")
             resources.getDrawable(R.drawable.keyboard_key_selector_outlined, context.theme)
+//            resources.getDrawable(R.drawable.bg_border, context.theme)
         } else {
+            Log.e(TAG, "setupKeyboard: keyboard_key_selector")
             resources.getDrawable(R.drawable.keyboard_key_selector, context.theme)
         }
         mKeyColor = getKeyColor()
@@ -371,14 +415,14 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
         val darkerColor = getKeyboardBackgroundColor()
         val miniKeyboardBackgroundColor = getToolbarColor(4)
 
-        if (!isMainKeyboard) {
-            val previewBackground = background as LayerDrawable
-            previewBackground.findDrawableByLayerId(R.id.button_background_shape).applyColorFilter(miniKeyboardBackgroundColor)
-            previewBackground.findDrawableByLayerId(R.id.button_background_stroke).applyColorFilter(strokeColor)
-            background = previewBackground
-        } else {
-            background.applyColorFilter(darkerColor)
-        }
+//        if (!isMainKeyboard) {
+//            val previewBackground = background as LayerDrawable
+//            previewBackground.findDrawableByLayerId(R.id.button_background_shape).applyColorFilter(miniKeyboardBackgroundColor)
+//            previewBackground.findDrawableByLayerId(R.id.button_background_stroke).applyColorFilter(strokeColor)
+//            background = previewBackground
+//        } else {
+//            background.applyColorFilter(darkerColor)
+//        }
 
         val rippleBg = resources.getDrawable(R.drawable.clipboard_background, context.theme) as RippleDrawable
         val layerDrawable = rippleBg.findDrawableByLayerId(R.id.clipboard_background_holder) as LayerDrawable
@@ -506,6 +550,12 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
             onBufferDraw()
         }
         canvas.drawBitmap(mBuffer!!, 0f, 0f, null)
+
+
+//        lottieDrawable?.start()
+
+
+        //lottieDrawable?.start()
     }
 
     @SuppressLint("UseCompatLoadingForDrawables")
@@ -517,6 +567,7 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
                 val height = Math.max(1, height)
                 mBuffer = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                 mCanvas = Canvas(mBuffer!!)
+                mCanvasAnim = Canvas(mBuffer!!)
             }
             invalidateAllKeys()
             mKeyboardChanged = false
@@ -527,6 +578,7 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
         }
 
         mCanvas!!.save()
+        mCanvasAnim!!.save()
         val canvas = mCanvas
         canvas!!.clipRect(mDirtyRect)
         val paint = mPaint
@@ -550,19 +602,28 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
             // TODO: Space key background on a KEYBOARD_PHONE should not be applied
             setupKeyBackground(key, code, canvas)
 
+            // change font here
+            val plain = Typeface.createFromAsset(context.assets, "borel_regular.ttf")
+
             // Switch the character to uppercase if shift is pressed
             val label = adjustCase(key.label)?.toString()
             if (label?.isNotEmpty() == true) {
                 // For characters, use large font. For labels like "Done", use small font.
+                // set typefont here
                 if (label.length > 1) {
+                    //  Log.e(TAG, "onBufferDraw: ${plain.toString()}", )
                     paint.textSize = mLabelTextSize.toFloat()
                     paint.typeface = Typeface.DEFAULT_BOLD
+                    paint.typeface = plain
                 } else {
+                    // Log.e(TAG, "onBufferDraw normal: ${plain.toString()}", )
                     paint.textSize = mKeyTextSize.toFloat()
                     paint.typeface = Typeface.DEFAULT
+                    paint.typeface = plain
                 }
 
                 paint.color = if (key.focused) {
+                    // mPrimaryColor.getContrastColor()
                     mPrimaryColor.getContrastColor()
                 } else {
                     mTextColor
@@ -572,6 +633,7 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
                     label, (key.width / 2).toFloat(), key.height / 2 + (paint.textSize - paint.descent()) / 2, paint
                 )
 
+
                 if (key.topSmallNumber.isNotEmpty() && !context.config.showNumbersRow) {
                     canvas.drawText(key.topSmallNumber, key.width - mTopSmallNumberMarginWidth, mTopSmallNumberMarginHeight, smallLetterPaint)
                 }
@@ -579,21 +641,24 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
                 // Turn off drop shadow
                 paint.setShadowLayer(0f, 0f, 0f, 0)
             } else if (key.icon != null && mKeyboard != null) {
+                // change CAP
                 if (code == KEYCODE_SHIFT) {
                     val drawableId = when (mKeyboard!!.mShiftState) {
-                        ShiftState.OFF -> R.drawable.ic_caps_outline_vector
-                        ShiftState.ON_ONE_CHAR -> R.drawable.ic_caps_vector
-                        else -> R.drawable.ic_caps_underlined_vector
+                        ShiftState.OFF -> R.drawable.cat_cry
+                        ShiftState.ON_ONE_CHAR -> R.drawable.cat_fun
+                        else -> R.drawable.cat_kiss
                     }
                     key.icon = resources.getDrawable(drawableId)
                 }
 
+
+                // disable key color here
                 if (code == KEYCODE_ENTER) {
                     key.icon!!.applyColorFilter(mPrimaryColor.getContrastColor())
                     key.secondaryIcon?.applyColorFilter(mPrimaryColor.getContrastColor())
                 } else if (code == KEYCODE_DELETE || code == KEYCODE_SHIFT || code == KEYCODE_EMOJI) {
-                    key.icon!!.applyColorFilter(mTextColor)
-                    key.secondaryIcon?.applyColorFilter(mTextColor)
+                    //   key.icon!!.applyColorFilter(mTextColor)
+                    //  key.secondaryIcon?.applyColorFilter(mTextColor)
                 }
                 val keyIcon = key.icon!!
                 val secondaryIcon = key.secondaryIcon
@@ -650,10 +715,15 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
     }
 
     private fun setupKeyBackground(key: MyKeyboard.Key, keyCode: Int, canvas: Canvas) {
+        // change color space
+
+//        change button here
         val keyBackground = when {
             keyCode == KEYCODE_SPACE && key.label.isBlank() -> getSpaceKeyBackground()
             keyCode == KEYCODE_ENTER -> getEnterKeyBackground()
             else -> mKeyBackground
+//            else -> resources.getDrawable(R.drawable.cat,context.theme)
+//            else -> resources.getDrawable(R.drawable.key_background_outlined, context.theme)
         }
 
         val bounds = keyBackground!!.bounds
@@ -667,6 +737,7 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
             else -> intArrayOf()
         }
 
+        // change keyboard space here
         if (key.focused || keyCode == KEYCODE_ENTER) {
             val keyColor = if (key.pressed) {
                 mPrimaryColor.adjustAlpha(0.8f)
@@ -689,6 +760,7 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
         keyBackground.draw(canvas)
     }
 
+    // change background here
     private fun getSpaceKeyBackground(): Drawable? {
         val drawableId = if (mUsingSystemTheme) {
             if (mShowKeyBorders) {
@@ -703,7 +775,7 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
                 R.drawable.keyboard_space_background
             }
         }
-        return resources.getDrawable(drawableId, context.theme)
+        return resources.getDrawable(R.drawable.key_background_outlined, context.theme)
     }
 
     private fun getEnterKeyBackground(): Drawable? {
@@ -1078,7 +1150,75 @@ class MyKeyboardView @JvmOverloads constructor(context: Context, attrs: Attribut
         return false
     }
 
+    fun findAnimIDLE(): LottieAnimationView? {
+        val anim = animClick.firstOrNull { it?.isAnimating == false }
+        if (anim != null)
+            return anim
+        else {
+            return animClick.first()
+        }
+    }
+
+    fun animTOuch(me: MotionEvent) {
+        if (me.action == MotionEvent.ACTION_DOWN) {
+            playSoundEffect()
+            findAnimIDLE()?.apply {
+//                setAnimation(R.raw.snow)
+                x = me.x - width / 2
+                y = me.y - height / 2
+                playAnimation()
+
+                addAnimatorListener(object : Animator.AnimatorListener {
+                    override fun onAnimationStart(animation: Animator) {
+                        isVisible = true
+                    }
+
+                    override fun onAnimationEnd(animation: Animator) {
+                        // isVisible = false
+                    }
+
+                    override fun onAnimationCancel(animation: Animator) {
+
+                    }
+
+                    override fun onAnimationRepeat(animation: Animator) {
+
+                    }
+                })
+            }
+        }
+
+    }
+
+
+    var attributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_GAME)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        .build()
+    val soundPool = SoundPool.Builder().setMaxStreams(5).setAudioAttributes(attributes).build()
+    val soundId = soundPool.load(context, R.raw.intrument, 1)
+    fun playSoundEffect(){
+//        val am = getSystemService(context, AudioManager::class.java) as AudioManager?
+//        val vol = 0.5.toFloat() //This will be half of the default system sound
+//
+//        am!!.playSoundEffect(AudioManager.FX_KEYPRESS_SPACEBAR, vol)
+
+
+// soundId for reuse later on
+
+// soundId for reuse later on
+        soundPool.play(soundId, 1f, 1f, 1, 0, 1f)
+
+    }
+
     override fun onTouchEvent(me: MotionEvent): Boolean {
+
+        CoroutineScope(Dispatchers.Main).launch {
+            animTOuch(me)
+
+        }
+
+
         val action = me.action
 
         if (ignoreTouches) {

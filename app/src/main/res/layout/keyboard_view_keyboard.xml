@@ -3,7 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/keyboard_holder"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:background="#020202">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/toolbar_holder"
@@ -95,12 +96,73 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/bg"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:lottie_rawRes="@raw/backgroud"
+        android:scaleType="centerCrop"
+        app:lottie_autoPlay="true"
+        app:lottie_loop="true"
+        app:lottie_renderMode="automatic"
+        app:lottie_cacheComposition="true"
+        app:lottie_clipToCompositionBounds="true"
+        app:lottie_enableMergePathsForKitKatAndAbove="true"
+        app:layout_constraintBottom_toBottomOf="@id/keyboard_view"
+        app:layout_constraintTop_toTopOf="@id/keyboard_view"
+        app:layout_constraintEnd_toEndOf="@id/keyboard_view"
+        app:layout_constraintStart_toStartOf="@id/keyboard_view" />
+
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/animClick1"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        app:lottie_rawRes="@raw/hoa_giay"
+        app:layout_constraintBottom_toBottomOf="@id/keyboard_view"
+        app:layout_constraintTop_toTopOf="@id/keyboard_view"
+        app:layout_constraintEnd_toEndOf="@id/keyboard_view"
+        app:layout_constraintStart_toStartOf="@id/keyboard_view" />
+
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/animClick2"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        app:lottie_rawRes="@raw/hoa_giay"
+        app:layout_constraintBottom_toBottomOf="@id/keyboard_view"
+        app:layout_constraintTop_toTopOf="@id/keyboard_view"
+        app:layout_constraintEnd_toEndOf="@id/keyboard_view"
+        app:layout_constraintStart_toStartOf="@id/keyboard_view" />
+
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/animClick3"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        app:lottie_rawRes="@raw/hoa_giay"
+        app:layout_constraintBottom_toBottomOf="@id/keyboard_view"
+        app:layout_constraintTop_toTopOf="@id/keyboard_view"
+        app:layout_constraintEnd_toEndOf="@id/keyboard_view"
+        app:layout_constraintStart_toStartOf="@id/keyboard_view" />
+
+
+    <com.airbnb.lottie.LottieAnimationView
+        android:id="@+id/animClick4"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        app:lottie_rawRes="@raw/hoa_giay"
+        app:layout_constraintBottom_toBottomOf="@id/keyboard_view"
+        app:layout_constraintTop_toTopOf="@id/keyboard_view"
+        app:layout_constraintEnd_toEndOf="@id/keyboard_view"
+        app:layout_constraintStart_toStartOf="@id/keyboard_view" />
+
     <com.simplemobiletools.keyboard.views.MyKeyboardView
         android:id="@+id/keyboard_view"
         style="@style/MyKeyboardView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:background="@color/theme_dark_background_color"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />

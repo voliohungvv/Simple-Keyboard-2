@@ -6,6 +6,7 @@ import android.content.res.Resources
 import android.content.res.TypedArray
 import android.content.res.XmlResourceParser
 import android.graphics.drawable.Drawable
+import android.util.Log
 import android.util.TypedValue
 import android.util.Xml
 import android.view.inputmethod.EditorInfo
@@ -20,6 +21,7 @@ import kotlin.math.roundToInt
  * @attr ref android.R.styleable#Keyboard_keyWidth
  * @attr ref android.R.styleable#Keyboard_horizontalGap
  */
+private const val TAG = "MyKeyboard"
 class MyKeyboard {
     /** Horizontal gap default for all rows  */
     private var mDefaultHorizontalGap = 0
@@ -110,6 +112,7 @@ class MyKeyboard {
             defaultHeight = (res.getDimension(R.dimen.key_height) * this.parent.mKeyboardHeightMultiplier).roundToInt()
             defaultHorizontalGap = getDimensionOrFraction(a, R.styleable.MyKeyboard_horizontalGap, parent.mDisplayWidth, parent.mDefaultHorizontalGap)
             isNumbersRow = a.getBoolean(R.styleable.MyKeyboard_isNumbersRow, false)
+            Log.e(TAG, "Size Keyboard: width = ${defaultWidth}  height = ${defaultHeight}  ${defaultWidth*1.0F/defaultHeight}", )
             a.recycle()
         }
     }

@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Keyboard xmlns:app="http://schemas.android.com/apk/res-auto">
+<Keyboard xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
     <Row app:isNumbersRow="true">
         <Key
             app:keyEdgeFlags="left"
@@ -121,7 +122,7 @@
         <Key
             app:code="-1"
             app:keyEdgeFlags="left"
-            app:keyIcon="@drawable/ic_caps_outline_vector"
+            app:keyIcon="@drawable/cat_fun"
             app:keyWidth="15%p" />
         <Key
             app:keyLabel="z"
@@ -143,7 +144,7 @@
             app:code="-5"
             app:isRepeatable="true"
             app:keyEdgeFlags="right"
-            app:keyIcon="@drawable/ic_clear_vector"
+            app:keyIcon="@drawable/cat_cry"
             app:keyWidth="15%p" />
     </Row>
     <Row>
